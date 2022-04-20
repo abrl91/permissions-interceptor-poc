@@ -8,22 +8,22 @@ import * as errors from "../errors";
 import { ForbiddenException } from "../errors";
 
 
-export interface Response<T> {
-    data: T;
-}
+// export interface Response<T> {
+//     data: T;
+// }
 
 @Injectable()
-export class PermissionsInterceptor<T> implements NestInterceptor<T, Response<T>> {
+export class PermissionsInterceptor<T> implements NestInterceptor {
     constructor(@InjectRolesBuilder() private readonly rolesBuilder: RolesBuilder, 
     private readonly reflector: Reflector) {}
 
-    intercept(context: ExecutionContext, next: CallHandler): Observable<Response<T>> {
+    intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
         const [permissionsRoles]: any = this.reflector.getAllAndMerge<string[]>('roles', [
             context.getHandler(),
             context.getClass(),
           ]);
 
-          const { route } = context.switchToHttp().getRequest();
+        const { route } = context.switchToHttp().getRequest();
 
         const permission = this.rolesBuilder.permission({
             role: permissionsRoles.role,
@@ -46,13 +46,23 @@ export class PermissionsInterceptor<T> implements NestInterceptor<T, Response<T>
         )
     }
 
+    /**
+     * 
+     * @param url the rout path
+     * @param action crud operation (create/read/update/delete)
+     * @param resource the entity
+     * @param userRoles array of the user roles (string)
+     * @param permission the permissions by resource and role
+     * @param data the return value from the route handler
+     * @returns data[] (find many) | data (find one) | void (delete operations return void)
+     */
     private mapPermissionsByAction(
         url: string,
         action: string, 
         resource: string, 
         userRoles: string[], 
         permission: Permission, 
-        data: T) {
+        data: any): any | any[] | void  {
         let invalidAttributes;
         switch (action) {
             case 'read':
