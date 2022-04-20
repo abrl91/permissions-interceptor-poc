@@ -97,18 +97,18 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
                     }
                 }
                 return data;
-                case 'delete':
-                    invalidAttributes = abacUtil.getInvalidAttributes(permission, data);
-                    if (invalidAttributes.length && this.checkRequestUrlNested(url)) {
-                      const roles = userRoles
-                        .map((role: string) => JSON.stringify(role))
-                        .join(",");
-                      throw new ForbiddenException(
-                        `Updating the relationship: ${
-                          invalidAttributes[0]
-                        } of ${"Order"} is forbidden for roles: ${roles}`
-                      );
-                    }
+            case 'delete':
+                invalidAttributes = abacUtil.getInvalidAttributes(permission, data);
+                if (invalidAttributes.length && this.checkRequestUrlNested(url)) {
+                    const roles = userRoles
+                    .map((role: string) => JSON.stringify(role))
+                    .join(",");
+                    throw new ForbiddenException(
+                    `Updating the relationship: ${
+                        invalidAttributes[0]
+                    } of ${"Order"} is forbidden for roles: ${roles}`
+                    );
+                }
         }
     }
 
