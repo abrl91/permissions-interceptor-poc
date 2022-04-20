@@ -109,7 +109,7 @@ export class PermissionsInterceptor<T> implements NestInterceptor<T, Response<T>
      * 
      * @param url string
      * check if url contains /:id/
-     * if so, it means that this route handler is nested
+     * if so - we need to handle the invalid attributed differently
      */
     private checkRequestUrlNested(url: string): boolean {
         return !!url.match('\/:id\/');
