@@ -1,0 +1,20 @@
+--------------------------------------------------------------------------------
+REST:
+--------------------------------------------------------------------------------
+CREATE: 
+READ:
+    - MANY (DIRECT): return results.map((result) => permission.filter(result));
+    - MANY (NESTED): return results.map((result) => permission.filter(result));
+    - ONE:  permission.filter(result);
+UPDATE:
+    - DIRECT ENTITY:
+    - NESTED ENTITY:
+PATCH:
+    
+DELETE:
+    - DIRECT ENTITY:
+    - NESTED ENTITY:
+
+-----------------------------------------------------------------------------------
+GRAPH_QL:
+-----------------------------------------------------------------------------------
