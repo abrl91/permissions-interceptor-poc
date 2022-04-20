@@ -24,7 +24,6 @@ export class PermissionsInterceptor<T> implements NestInterceptor<T, Response<T>
           ]);
 
           const { route } = context.switchToHttp().getRequest();
-          console.log(this.rolesBuilder.getResources())
 
         const permission = this.rolesBuilder.permission({
             role: permissionsRoles.role,
@@ -32,8 +31,6 @@ export class PermissionsInterceptor<T> implements NestInterceptor<T, Response<T>
             possession: permissionsRoles.possession,
             resource: permissionsRoles.resource,
           });
-
-        console.log(permission, 'permissions from interceptor');
         
         return next.handle().pipe(
             map((data) => {
