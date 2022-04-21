@@ -49,13 +49,12 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
     }
 
     /**
-     * 
-     * @param url the rout path
-     * @param action crud operation (create/read/update/delete)
-     * @param resource the entity
-     * @param userRoles array of the user roles (string)
-     * @param permission the permissions by resource and role
-     * @param data the return value from the route handler
+     * @param url: string, the rout path
+     * @param action: string, crud operation (create/read/update/delete)
+     * @param resource: string, the entity
+     * @param userRoles: string[], array of the user roles (string)
+     * @param permission: Permission the permissions by resource and role
+     * @param data: any (depends on the resource), the return value from the route handler
      * @returns data[] (find many) | data (find one) | void (delete operations return void)
      */
     private mapPermissionsByAction(
@@ -66,12 +65,14 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
         permission: Permission, 
         data: any): any | any[] | void  {
         let invalidAttributes;
+        console.log({data}, 'no filter');
         switch (action) {
             case 'read':
                 if (Array.isArray(data)) {
-                    console.log(data.map((results: T) => permission.filter(results)), 'filtered from interceptor');
+                    console.log(data.map((results: T) => permission.filter(results)), 'find many filtered');
                     return data.map((results: T) => permission.filter(results))    
                 } else {
+                    console.log(permission.filter(data), 'find one filtered');
                    return permission.filter(data);
                 }
             case 'crete':
@@ -115,14 +116,16 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
                 return data;
             case 'delete':
                 invalidAttributes = abacUtil.getInvalidAttributes(permission, data);
+                console.log('will get here if simple delete');
                 if (invalidAttributes.length && this.checkRequestUrlNested(url)) {
+                    console.log('will get here if nested delete');
                     const roles = userRoles
-                    .map((role: string) => JSON.stringify(role))
-                    .join(",");
+                        .map((role: string) => JSON.stringify(role))
+                        .join(",");
                     throw new ForbiddenException(
-                    `Updating the relationship: ${
-                        invalidAttributes[0]
-                    } of ${resource} is forbidden for roles: ${roles}`
+                        `Updating the relationship: ${
+                            invalidAttributes[0]
+                        } of ${resource} is forbidden for roles: ${roles}`
                     );
                 }
         }
