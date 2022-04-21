@@ -6,6 +6,7 @@ import { Reflector } from '@nestjs/core';
 import * as abacUtil from "../auth/abac.util";
 import * as errors from "../errors";
 import { ForbiddenException } from "../errors";
+import { IS_PUBLIC_KEY } from "src/decorators/public.decorator";
 
 
 // export interface Response<T> {
@@ -20,32 +21,42 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
     ) {}
 
     intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-        const [permissionsRoles]: any = this.reflector.getAllAndMerge<string[]>('roles', [
-            context.getHandler(),
-            context.getClass(),
-          ]);
+        const isPublic = this.reflector.get<boolean>(
+            IS_PUBLIC_KEY,
+            context.getHandler()
+        );
 
-        const { route } = context.switchToHttp().getRequest();
+        if (!isPublic) {
+            const [permissionsRoles]: any = this.reflector.getAllAndMerge<string[]>('roles', [
+                context.getHandler(),
+                context.getClass(),
+              ]);
+    
+            const { route } = context.switchToHttp().getRequest();
+    
+            const permission = this.rolesBuilder.permission({
+                role: permissionsRoles.role,
+                action: permissionsRoles.action,
+                possession: permissionsRoles.possession,
+                resource: permissionsRoles.resource,
+              });
+            
+            return next.handle().pipe(
+                map((data) => {
+                    return this.mapPermissionsByAction(
+                        route.path,
+                        permissionsRoles.action,
+                        permissionsRoles.resource,
+                        permissionsRoles.role,
+                        permission,
+                        data
+                    )
+                })
+            )
+        }
 
-        const permission = this.rolesBuilder.permission({
-            role: permissionsRoles.role,
-            action: permissionsRoles.action,
-            possession: permissionsRoles.possession,
-            resource: permissionsRoles.resource,
-          });
+        return next.handle();
         
-        return next.handle().pipe(
-            map((data) => {
-                return this.mapPermissionsByAction(
-                    route.path,
-                    permissionsRoles.action,
-                    permissionsRoles.resource,
-                    permissionsRoles.role,
-                    permission,
-                    data
-                )
-            })
-        )
     }
 
     /**

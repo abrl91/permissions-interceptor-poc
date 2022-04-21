@@ -1,27 +1,26 @@
+import { ExecutionContext,Injectable } from "@nestjs/common";
 import { Reflector } from "@nestjs/core";
-import { ExecutionContext } from "@nestjs/common";
-import { IS_PUBLIC_KEY } from "../decorators/public.decorator";
 import { JwtAuthGuard } from "./jwt/jwtAuth.guard";
+import {IS_PUBLIC_KEY} from "../decorators/public.decorator"
 
+@Injectable()
 export class DefaultAuthGuard extends JwtAuthGuard {
-  constructor(private readonly reflector: Reflector) {
-    super();
-  }
-
-  async canActivate(context: ExecutionContext): Promise<boolean> {
-    let parentCanActivate = false;
-
-    try {
-      parentCanActivate = (await super.canActivate(context)) as boolean;
-    } catch (err) {
-      parentCanActivate = false;
+    constructor(private readonly reflector: Reflector) {
+        super(); 
+        console.log('asdf')       
     }
 
-    const isPublic = this.reflector?.get<boolean>(
-      IS_PUBLIC_KEY,
-      context.getHandler()
-    );
+    canActivate(context: ExecutionContext) {
+        const isPublic = this.reflector.get<boolean>(
+            IS_PUBLIC_KEY,
+            context.getHandler()
+        );
 
-    return isPublic || parentCanActivate;
-  }
+        console.log(isPublic, 'isPUblic form poc');
+        if (isPublic) {
+            return true;
+        }
+
+        return super.canActivate(context);
+    }
 }
