@@ -7,7 +7,6 @@ import {IS_PUBLIC_KEY} from "../decorators/public.decorator"
 export class DefaultAuthGuard extends JwtAuthGuard {
     constructor(private readonly reflector: Reflector) {
         super(); 
-        console.log('asdf')       
     }
 
     canActivate(context: ExecutionContext) {
@@ -16,7 +15,6 @@ export class DefaultAuthGuard extends JwtAuthGuard {
             context.getHandler()
         );
 
-        console.log(isPublic, 'isPUblic form poc');
         if (isPublic) {
             return true;
         }

@@ -10,10 +10,8 @@ https://docs.amplication.com/docs/how-to/custom-code
 ------------------------------------------------------------------------------
   */
 import { Module, forwardRef } from "@nestjs/common";
-import { APP_GUARD } from "@nestjs/core";
 import { MorganModule } from "nest-morgan";
 import { PrismaModule } from "nestjs-prisma";
-import { DefaultAuthGuard } from "src/auth/defaultAuth.guard";
 import { ACLModule } from "../../auth/acl.module";
 import { AuthModule } from "../../auth/auth.module";
 
@@ -24,12 +22,6 @@ import { AuthModule } from "../../auth/auth.module";
     MorganModule,
     PrismaModule,
   ],
-  // providers: [
-  //   {
-  //     provide: APP_GUARD, 
-  //     useClass: DefaultAuthGuard,
-  //   }
-  // ],
   exports: [ACLModule, AuthModule, MorganModule, PrismaModule],
 })
 export class OrderModuleBase {}
