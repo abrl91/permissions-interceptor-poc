@@ -14,8 +14,10 @@ import { ForbiddenException } from "../errors";
 
 @Injectable()
 export class PermissionsInterceptor<T> implements NestInterceptor {
-    constructor(@InjectRolesBuilder() private readonly rolesBuilder: RolesBuilder, 
-    private readonly reflector: Reflector) {}
+    constructor(
+        @InjectRolesBuilder() private readonly rolesBuilder: RolesBuilder, 
+        private readonly reflector: Reflector
+    ) {}
 
     intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
         const [permissionsRoles]: any = this.reflector.getAllAndMerge<string[]>('roles', [
@@ -72,7 +74,21 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
                 } else {
                    return permission.filter(data);
                 }
-            case 'crete' || 'update':
+            case 'crete':
+                invalidAttributes = abacUtil.getInvalidAttributes(permission, data);
+                if (invalidAttributes.length) {
+                    const properties = invalidAttributes
+                        .map((attribute: string) => JSON.stringify(attribute))
+                        .join(", ");
+                    const roles = userRoles
+                        .map((role: string) => JSON.stringify(role))
+                        .join(",");
+                    throw new errors.ForbiddenException(
+                        `providing the properties: ${properties} on ${resource} ${action} is forbidden for roles: ${roles}`
+                    );
+                }
+                return data;
+            case 'update':
                 invalidAttributes = abacUtil.getInvalidAttributes(permission, data);
                 if (invalidAttributes.length) {
                     if (!this.checkRequestUrlNested(url)) {
@@ -106,7 +122,7 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
                     throw new ForbiddenException(
                     `Updating the relationship: ${
                         invalidAttributes[0]
-                    } of ${"Order"} is forbidden for roles: ${roles}`
+                    } of ${resource} is forbidden for roles: ${roles}`
                     );
                 }
         }
@@ -122,4 +138,3 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
         return !!url.match('\/:id\/');
     }
   }
-
