@@ -104,13 +104,13 @@ export class OrderControllerBase {
   }
 
   @common.UseInterceptors(nestMorgan.MorganInterceptor("combined"))
-  @Public()
+  // @Public()
   @common.Get()
-  // @nestAccessControl.UseRoles({
-  //   resource: "Order",
-  //   action: "read",
-  //   possession: "any",
-  // })
+  @nestAccessControl.UseRoles({
+    resource: "Order",
+    action: "read",
+    possession: "any",
+  })
   @swagger.ApiOkResponse({ type: [Order] })
   @swagger.ApiForbiddenResponse()
   @ApiNestedQuery(OrderFindManyArgs)

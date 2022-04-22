@@ -5,6 +5,7 @@ import { InjectRolesBuilder, Permission, RolesBuilder } from 'nest-access-contro
 import { Reflector } from '@nestjs/core';
 import * as abacUtil from "../auth/abac.util";
 import * as errors from "../errors";
+import * as apollo from "apollo-server-express";
 import { ForbiddenException } from "../errors";
 import { IS_PUBLIC_KEY } from "src/decorators/public.decorator";
 
@@ -26,21 +27,45 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
             context.getHandler()
         );
 
-        if (!isPublic) {
-            const [permissionsRoles]: any = this.reflector.getAllAndMerge<string[]>('roles', [
-                context.getHandler(),
-                context.getClass(),
-              ]);
-    
-            const { route } = context.switchToHttp().getRequest();
-    
-            const permission = this.rolesBuilder.permission({
-                role: permissionsRoles.role,
-                action: permissionsRoles.action,
-                possession: permissionsRoles.possession,
-                resource: permissionsRoles.resource,
-              });
+        if (isPublic) {
+            return next.handle();
+        }
+
+        const [permissionsRoles]: any = this.reflector.getAllAndMerge<string[]>('roles', [
+            context.getHandler(),
+            context.getClass(),
+        ]);
+
+        const permission = this.rolesBuilder.permission({
+            role: permissionsRoles.role,
+            action: permissionsRoles.action,
+            possession: permissionsRoles.possession,
+            resource: permissionsRoles.resource,
+        });
+
+        const type: string = context.getType();
+        
+        if (type === 'graphql') {
+            const { path } = context.getArgByIndex(3);
+            const argsData = context.getArgByIndex(1);
             
+            return next.handle().pipe(
+                map((data) => {
+                    return this.mapPermissionsByTypeName(
+                        path.typename,
+                        permissionsRoles.action,
+                        permissionsRoles.resource,
+                        permissionsRoles.role,
+                        permission,
+                        argsData,
+                        data,
+                    )
+                })
+            )
+        }
+
+        if (type === 'http') {
+            const { route } = context.switchToHttp().getRequest();
             return next.handle().pipe(
                 map((data) => {
                     return this.mapPermissionsByAction(
@@ -57,6 +82,7 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
 
         return next.handle();
         
+        
     }
 
     /**
@@ -65,8 +91,8 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
      * @param resource: string, the entity
      * @param userRoles: string[], array of the user roles (string)
      * @param permission: Permission the permissions by resource and role
-     * @param data: any (depends on the resource), the return value from the route handler
-     * @returns data[] (find many) | data (find one) | void (delete operations return void)
+     * @param resourceResults: any (depends on the resource), the return value from the route handler
+     * @returns resourceResults[] (find many) | resourceResult (find one) | void (delete operations return void)
      */
     private mapPermissionsByAction(
         url: string,
@@ -74,20 +100,20 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
         resource: string, 
         userRoles: string[], 
         permission: Permission, 
-        data: any): any | any[] | void  {
+        resourceResults: any): any[] | any | void  {
         let invalidAttributes;
-        console.log({data}, 'no filter');
+        console.log({resourceResults}, 'no filter');
         switch (action) {
             case 'read':
-                if (Array.isArray(data)) {
-                    console.log(data.map((results: T) => permission.filter(results)), 'find many filtered');
-                    return data.map((results: T) => permission.filter(results))    
+                if (Array.isArray(resourceResults)) {
+                    console.log(resourceResults.map((results: T) => permission.filter(results)), 'find many filtered');
+                    return resourceResults.map((results: T) => permission.filter(results))    
                 } else {
-                    console.log(permission.filter(data), 'find one filtered');
-                   return permission.filter(data);
+                    console.log(permission.filter(resourceResults), 'find one filtered');
+                   return permission.filter(resourceResults);
                 }
             case 'crete':
-                invalidAttributes = abacUtil.getInvalidAttributes(permission, data);
+                invalidAttributes = abacUtil.getInvalidAttributes(permission, resourceResults);
                 if (invalidAttributes.length) {
                     const properties = invalidAttributes
                         .map((attribute: string) => JSON.stringify(attribute))
@@ -99,9 +125,9 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
                         `providing the properties: ${properties} on ${resource} ${action} is forbidden for roles: ${roles}`
                     );
                 }
-                return data;
+                return resourceResults;
             case 'update':
-                invalidAttributes = abacUtil.getInvalidAttributes(permission, data);
+                invalidAttributes = abacUtil.getInvalidAttributes(permission, resourceResults);
                 if (invalidAttributes.length) {
                     if (!this.checkRequestUrlNested(url)) {
                         const properties = invalidAttributes
@@ -124,9 +150,9 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
                       );
                     }
                 }
-                return data;
+                return resourceResults;
             case 'delete':
-                invalidAttributes = abacUtil.getInvalidAttributes(permission, data);
+                invalidAttributes = abacUtil.getInvalidAttributes(permission, resourceResults);
                 console.log('will get here if simple delete');
                 if (invalidAttributes.length && this.checkRequestUrlNested(url)) {
                     console.log('will get here if nested delete');
@@ -139,6 +165,60 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
                         } of ${resource} is forbidden for roles: ${roles}`
                     );
                 }
+        }
+    }
+
+    /**
+     * 
+     * @param typeName string: Query/Mutation
+     * @param action string: create/read/update/delete
+     * @param resource string: the entity for the action
+     * @param userRoles string[] roles of the loggedIn user
+     * @param permission Permission of the user
+     * @param args object with the data of the gql query/mutation that have sent
+     * @param resourceResults any (depends on the resource), the return value from gql typename
+     * @returns resourceResults[] (find many) | resourceResult (find one) | null (delete)
+     */
+    private mapPermissionsByTypeName(
+        typeName: string,
+        action: string,
+        resource: string,
+        userRoles: string[], 
+        permission: Permission, 
+        args: {data: any},
+        resourceResults: any
+    ): any[] | any | null {
+        switch (typeName) {
+            case 'Query':
+                if (Array.isArray(resourceResults)) {
+                    console.log(resourceResults.map((results: T) => permission.filter(results)), 'find many filtered');
+                    return resourceResults.map((results: T) => permission.filter(results))    
+                } else {
+                    console.log(permission.filter(resourceResults), 'find one filtered');
+                   return permission.filter(resourceResults);
+                }
+            case 'Mutation':
+                if (action === 'delete') {
+                    return resourceResults;
+                }
+                const invalidAttributes = abacUtil.getInvalidAttributes(
+                    permission,
+                    args.data
+                  );
+                if (invalidAttributes.length) {
+                    console.log('i am here');
+                    
+                    const properties = invalidAttributes
+                      .map((attribute: string) => JSON.stringify(attribute))
+                      .join(", ");
+                    const roles = userRoles
+                      .map((role: string) => JSON.stringify(role))
+                      .join(",");
+                    throw new apollo.ApolloError(
+                      `providing the properties: ${properties} on ${resource} is forbidden for roles: ${roles}`
+                    );
+                  }
+                  return resourceResults;
         }
     }
 

@@ -29,9 +29,12 @@ import { ProductFindManyArgs } from "../../product/base/ProductFindManyArgs";
 import { Product } from "../../product/base/Product";
 import { Customer } from "../../customer/base/Customer";
 import { OrderService } from "../order.service";
+import { PermissionsInterceptor } from "src/interceptors/permissions.interceptor";
+import { Public } from "src/decorators/public.decorator";
 
 @graphql.Resolver(() => Order)
 @common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
+@common.UseInterceptors(PermissionsInterceptor)
 export class OrderResolverBase {
   constructor(
     protected readonly service: OrderService,
@@ -63,18 +66,20 @@ export class OrderResolverBase {
     action: "read",
     possession: "any",
   })
+  // @Public()
   async orders(
     @graphql.Args() args: OrderFindManyArgs,
-    @gqlUserRoles.UserRoles() userRoles: string[]
+    // @gqlUserRoles.UserRoles() userRoles: string[]
   ): Promise<Order[]> {
-    const permission = this.rolesBuilder.permission({
-      role: userRoles,
-      action: "read",
-      possession: "any",
-      resource: "Order",
-    });
+    // const permission = this.rolesBuilder.permission({
+    //   role: userRoles,
+    //   action: "read",
+    //   possession: "any",
+    //   resource: "Order",
+    // });
     const results = await this.service.findMany(args);
-    return results.map((result) => permission.filter(result));
+    return results;
+    // return results.map((result) => permission.filter(result));
   }
 
   @graphql.Query(() => Order, { nullable: true })
@@ -85,19 +90,20 @@ export class OrderResolverBase {
   })
   async order(
     @graphql.Args() args: OrderFindUniqueArgs,
-    @gqlUserRoles.UserRoles() userRoles: string[]
+    // @gqlUserRoles.UserRoles() userRoles: string[]
   ): Promise<Order | null> {
-    const permission = this.rolesBuilder.permission({
-      role: userRoles,
-      action: "read",
-      possession: "own",
-      resource: "Order",
-    });
+    // const permission = this.rolesBuilder.permission({
+    //   role: userRoles,
+    //   action: "read",
+    //   possession: "own",
+    //   resource: "Order",
+    // });
     const result = await this.service.findOne(args);
     if (result === null) {
       return null;
     }
-    return permission.filter(result);
+    return result;
+    // return permission.filter(result);
   }
 
   @graphql.Mutation(() => Order)
@@ -108,29 +114,29 @@ export class OrderResolverBase {
   })
   async createOrder(
     @graphql.Args() args: CreateOrderArgs,
-    @gqlUserRoles.UserRoles() userRoles: string[]
+    // @gqlUserRoles.UserRoles() userRoles: string[]
   ): Promise<Order> {
-    const permission = this.rolesBuilder.permission({
-      role: userRoles,
-      action: "create",
-      possession: "any",
-      resource: "Order",
-    });
-    const invalidAttributes = abacUtil.getInvalidAttributes(
-      permission,
-      args.data
-    );
-    if (invalidAttributes.length) {
-      const properties = invalidAttributes
-        .map((attribute: string) => JSON.stringify(attribute))
-        .join(", ");
-      const roles = userRoles
-        .map((role: string) => JSON.stringify(role))
-        .join(",");
-      throw new apollo.ApolloError(
-        `providing the properties: ${properties} on ${"Order"} creation is forbidden for roles: ${roles}`
-      );
-    }
+    // const permission = this.rolesBuilder.permission({
+    //   role: userRoles,
+    //   action: "create",
+    //   possession: "any",
+    //   resource: "Order",
+    // });
+    // const invalidAttributes = abacUtil.getInvalidAttributes(
+    //   permission,
+    //   args.data
+    // );
+    // if (invalidAttributes.length) {
+    //   const properties = invalidAttributes
+    //     .map((attribute: string) => JSON.stringify(attribute))
+    //     .join(", ");
+    //   const roles = userRoles
+    //     .map((role: string) => JSON.stringify(role))
+    //     .join(",");
+    //   throw new apollo.ApolloError(
+    //     `providing the properties: ${properties} on ${"Order"} creation is forbidden for roles: ${roles}`
+    //   );
+    // }
     // @ts-ignore
     return await this.service.create({
       ...args,
