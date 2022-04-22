@@ -61,12 +61,12 @@ export class OrderResolverBase {
   }
 
   @graphql.Query(() => [Order])
-  @nestAccessControl.UseRoles({
-    resource: "Order",
-    action: "read",
-    possession: "any",
-  })
-  // @Public()
+  // @nestAccessControl.UseRoles({
+  //   resource: "Order",
+  //   action: "read",
+  //   possession: "any",
+  // })
+  @Public()
   async orders(
     @graphql.Args() args: OrderFindManyArgs,
     // @gqlUserRoles.UserRoles() userRoles: string[]
@@ -230,29 +230,31 @@ export class OrderResolverBase {
   }
 
   @graphql.ResolveField(() => [Product])
-  @nestAccessControl.UseRoles({
-    resource: "Order",
-    action: "read",
-    possession: "any",
-  })
+  // @nestAccessControl.UseRoles({
+  //   resource: "Order",
+  //   action: "read",
+  //   possession: "any",
+  // })
+  @Public()
   async product(
     @graphql.Parent() parent: Order,
     @graphql.Args() args: ProductFindManyArgs,
-    @gqlUserRoles.UserRoles() userRoles: string[]
+    // @gqlUserRoles.UserRoles() userRoles: string[]
   ): Promise<Product[]> {
-    const permission = this.rolesBuilder.permission({
-      role: userRoles,
-      action: "read",
-      possession: "any",
-      resource: "Product",
-    });
+    // const permission = this.rolesBuilder.permission({
+    //   role: userRoles,
+    //   action: "read",
+    //   possession: "any",
+    //   resource: "Product",
+    // });
     const results = await this.service.findProduct(parent.id, args);
 
     if (!results) {
       return [];
     }
 
-    return results.map((result) => permission.filter(result));
+    return results;
+    // return results.map((result) => permission.filter(result));
   }
 
   @graphql.ResolveField(() => Customer, { nullable: true })
