@@ -77,10 +77,8 @@ export class RestPermissionsInterceptor<T> implements NestInterceptor {
             case 'read':
                 console.log('read');
                 if (Array.isArray(resourceResults)) {
-                    console.log(resourceResults.map((results: T) => permission.filter(results)), 'find many filtered');
                     return resourceResults.map((results: T) => permission.filter(results))    
                 } else {
-                    console.log(permission.filter(resourceResults), 'find one filtered');
                    return permission.filter(resourceResults);
                 }
             case 'create':

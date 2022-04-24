@@ -14,7 +14,6 @@ import * as swagger from "@nestjs/swagger";
 import * as nestMorgan from "nest-morgan";
 import * as nestAccessControl from "nest-access-control";
 import * as defaultAuthGuard from "../../auth/defaultAuth.guard";
-import * as abacUtil from "../../auth/abac.util";
 import { isRecordNotFoundError } from "../../prisma.util";
 import * as errors from "../../errors";
 import { Request } from "express";
@@ -22,16 +21,12 @@ import { plainToClass } from "class-transformer";
 import { ApiNestedQuery } from "../../decorators/api-nested-query.decorator";
 import { OrderService } from "../order.service";
 import { OrderCreateInput } from "./OrderCreateInput";
-import { OrderWhereInput } from "./OrderWhereInput";
 import { OrderWhereUniqueInput } from "./OrderWhereUniqueInput";
 import { OrderFindManyArgs } from "./OrderFindManyArgs";
 import { OrderUpdateInput } from "./OrderUpdateInput";
 import { Order } from "./Order";
 import { ProductFindManyArgs } from "../../product/base/ProductFindManyArgs";
 import { Product } from "../../product/base/Product";
-import { ProductWhereUniqueInput } from "../../product/base/ProductWhereUniqueInput";
-import { PermissionsInterceptor } from "src/interceptors/permissions.interceptor";
-import { Public } from "src/decorators/public.decorator";
 import { RestPermissionsInterceptor } from "src/interceptors/restPermissions.interceptor";
 import { ProductCreateNestedManyWithoutOrdersInput } from "./ProductCreateNestedManyWithoutOrdersInput";
 import { ProductUpdateManyWithoutOrdersInput } from "./ProductUpdateManyWithoutOrdersInput";
@@ -59,28 +54,8 @@ export class OrderControllerBase {
   @swagger.ApiForbiddenResponse({ type: errors.ForbiddenException })
   async create(
     @common.Body() data: OrderCreateInput,
-    // @nestAccessControl.UserRoles() userRoles: string[]
   ): Promise<Order> {
     console.log('order');
-    
-    // const permission = this.rolesBuilder.permission({
-    //   role: userRoles,
-    //   action: "create",
-    //   possession: "any",
-    //   resource: "Order",
-    // });
-    // const invalidAttributes = abacUtil.getInvalidAttributes(permission, data);
-    // if (invalidAttributes.length) {
-    //   const properties = invalidAttributes
-    //     .map((attribute: string) => JSON.stringify(attribute))
-    //     .join(", ");
-    //   const roles = userRoles
-    //     .map((role: string) => JSON.stringify(role))
-    //     .join(",");
-    //   throw new errors.ForbiddenException(
-    //     `providing the properties: ${properties} on ${"Order"} creation is forbidden for roles: ${roles}`
-    //   );
-    // }
     return await this.service.create({
       data: {
         ...data,
@@ -109,7 +84,6 @@ export class OrderControllerBase {
   }
 
   @common.UseInterceptors(nestMorgan.MorganInterceptor("combined"))
-  // @Public()
   @common.Get()
   @nestAccessControl.UseRoles({
     resource: "Order",
@@ -121,16 +95,8 @@ export class OrderControllerBase {
   @ApiNestedQuery(OrderFindManyArgs)
   async findMany(
     @common.Req() request: Request,
-    // @nestAccessControl.UserRoles() userRoles: string[]
   ): Promise<Order[]> {
     const args = plainToClass(OrderFindManyArgs, request.query);
-
-    // const permission = this.rolesBuilder.permission({
-    //   role: userRoles,
-    //   action: "read",
-    //   possession: "any",
-    //   resource: "Order",
-    // });
     const results = await this.service.findMany({
       ...args,
       select: {
@@ -149,7 +115,6 @@ export class OrderControllerBase {
       },
     });
     return results;
-    // return results.map((result) => permission.filter(result));
   }
 
   @common.UseInterceptors(nestMorgan.MorganInterceptor("combined"))
@@ -164,14 +129,8 @@ export class OrderControllerBase {
   @swagger.ApiForbiddenResponse({ type: errors.ForbiddenException })
   async findOne(
     @common.Param() params: OrderWhereUniqueInput,
-    // @nestAccessControl.UserRoles() userRoles: string[]
   ): Promise<Order | null> {
-    // const permission = this.rolesBuilder.permission({
-    //   role: userRoles,
-    //   action: "read",
-    //   possession: "own",
-    //   resource: "Order",
-    // });
+
     const result = await this.service.findOne({
       where: params,
       select: {
@@ -195,7 +154,6 @@ export class OrderControllerBase {
       );
     }
     return result;
-    // return permission.filter(result);
   }
 
   @common.UseInterceptors(nestMorgan.MorganInterceptor("combined"))
@@ -212,26 +170,7 @@ export class OrderControllerBase {
     @common.Param() params: OrderWhereUniqueInput,
     @common.Body()
     data: OrderUpdateInput,
-    // @nestAccessControl.UserRoles() userRoles: string[]
   ): Promise<Order | null> {
-    // const permission = this.rolesBuilder.permission({
-    //   role: userRoles,
-    //   action: "update",
-    //   possession: "any",
-    //   resource: "Order",
-    // });
-    // const invalidAttributes = abacUtil.getInvalidAttributes(permission, data);
-    // if (invalidAttributes.length) {
-    //   const properties = invalidAttributes
-    //     .map((attribute: string) => JSON.stringify(attribute))
-    //     .join(", ");
-    //   const roles = userRoles
-    //     .map((role: string) => JSON.stringify(role))
-    //     .join(",");
-    //   throw new errors.ForbiddenException(
-    //     `providing the properties: ${properties} on ${"Order"} update is forbidden for roles: ${roles}`
-    //   );
-    // }
     try {
       return await this.service.update({
         where: params,
@@ -321,15 +260,8 @@ export class OrderControllerBase {
   async findManyProduct(
     @common.Req() request: Request,
     @common.Param() params: OrderWhereUniqueInput,
-    // @nestAccessControl.UserRoles() userRoles: string[]
   ): Promise<Product[]> {
     const query = plainToClass(ProductFindManyArgs, request.query);
-    // const permission = this.rolesBuilder.permission({
-    //   role: userRoles,
-    //   action: "read",
-    //   possession: "any",
-    //   resource: "Product",
-    // });
     const results = await this.service.findProduct(params.id, {
       ...query,
       select: {
@@ -347,7 +279,6 @@ export class OrderControllerBase {
       );
     }
     return results;
-    // return results.map((result) => permission.filter(result));
   }
 
   @common.UseInterceptors(nestMorgan.MorganInterceptor("combined"))
