@@ -30,7 +30,9 @@ import { Customer } from "./Customer";
 import { OrderFindManyArgs } from "../../order/base/OrderFindManyArgs";
 import { Order } from "../../order/base/Order";
 import { OrderWhereUniqueInput } from "../../order/base/OrderWhereUniqueInput";
+import { RestPermissionsInterceptor } from "src/interceptors/restPermissions.interceptor";
 @swagger.ApiBearerAuth()
+@common.UseInterceptors(RestPermissionsInterceptor)
 export class CustomerControllerBase {
   constructor(
     protected readonly service: CustomerService,
@@ -215,26 +217,26 @@ export class CustomerControllerBase {
     @common.Param() params: CustomerWhereUniqueInput,
     @common.Body()
     data: CustomerUpdateInput,
-    @nestAccessControl.UserRoles() userRoles: string[]
+    // @nestAccessControl.UserRoles() userRoles: string[]
   ): Promise<Customer | null> {
-    const permission = this.rolesBuilder.permission({
-      role: userRoles,
-      action: "update",
-      possession: "any",
-      resource: "Customer",
-    });
-    const invalidAttributes = abacUtil.getInvalidAttributes(permission, data);
-    if (invalidAttributes.length) {
-      const properties = invalidAttributes
-        .map((attribute: string) => JSON.stringify(attribute))
-        .join(", ");
-      const roles = userRoles
-        .map((role: string) => JSON.stringify(role))
-        .join(",");
-      throw new errors.ForbiddenException(
-        `providing the properties: ${properties} on ${"Customer"} update is forbidden for roles: ${roles}`
-      );
-    }
+    // const permission = this.rolesBuilder.permission({
+    //   role: userRoles,
+    //   action: "update",
+    //   possession: "any",
+    //   resource: "Customer",
+    // });
+    // const invalidAttributes = abacUtil.getInvalidAttributes(permission, data);
+    // if (invalidAttributes.length) {
+    //   const properties = invalidAttributes
+    //     .map((attribute: string) => JSON.stringify(attribute))
+    //     .join(", ");
+    //   const roles = userRoles
+    //     .map((role: string) => JSON.stringify(role))
+    //     .join(",");
+    //   throw new errors.ForbiddenException(
+    //     `providing the properties: ${properties} on ${"Customer"} update is forbidden for roles: ${roles}`
+    //   );
+    // }
     try {
       return await this.service.update({
         where: params,

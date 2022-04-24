@@ -32,13 +32,16 @@ import { Product } from "../../product/base/Product";
 import { ProductWhereUniqueInput } from "../../product/base/ProductWhereUniqueInput";
 import { PermissionsInterceptor } from "src/interceptors/permissions.interceptor";
 import { Public } from "src/decorators/public.decorator";
+import { RestPermissionsInterceptor } from "src/interceptors/restPermissions.interceptor";
+import { ProductCreateNestedManyWithoutOrdersInput } from "./ProductCreateNestedManyWithoutOrdersInput";
+import { ProductUpdateManyWithoutOrdersInput } from "./ProductUpdateManyWithoutOrdersInput";
 
 @swagger.ApiBearerAuth()
 @common.UseGuards(
   defaultAuthGuard.DefaultAuthGuard,
   nestAccessControl.ACGuard
 )
-@common.UseInterceptors(PermissionsInterceptor)
+@common.UseInterceptors(RestPermissionsInterceptor)
 export class OrderControllerBase {
   constructor(
     protected readonly service: OrderService,
@@ -58,6 +61,8 @@ export class OrderControllerBase {
     @common.Body() data: OrderCreateInput,
     // @nestAccessControl.UserRoles() userRoles: string[]
   ): Promise<Order> {
+    console.log('order');
+    
     // const permission = this.rolesBuilder.permission({
     //   role: userRoles,
     //   action: "create",
@@ -354,13 +359,11 @@ export class OrderControllerBase {
   })
   async createProduct(
     @common.Param() params: OrderWhereUniqueInput,
-    @common.Body() body: OrderWhereUniqueInput[],
+    @common.Body() body: ProductCreateNestedManyWithoutOrdersInput,
     // @nestAccessControl.UserRoles() userRoles: string[]
   ): Promise<void> {
     const data = {
-      product: {
-        connect: body,
-      },
+      product: body,
     };
     // const permission = this.rolesBuilder.permission({
     //   role: userRoles,
@@ -389,28 +392,27 @@ export class OrderControllerBase {
   @common.UseInterceptors(nestMorgan.MorganInterceptor("combined"))
   @common.Patch("/:id/product")
   @nestAccessControl.UseRoles({
-    resource: "Order",
+    resource: "Product",
     action: "update",
     possession: "any",
   })
   async updateProduct(
     @common.Param() params: OrderWhereUniqueInput,
-    @common.Body() body: ProductWhereUniqueInput[],
+    @common.Body() body: ProductUpdateManyWithoutOrdersInput,
     // @nestAccessControl.UserRoles() userRoles: string[]
   ): Promise<void> {
     const data = {
-      product: {
-        set: body,
-      },
+      product: body,
     };
     // const permission = this.rolesBuilder.permission({
     //   role: userRoles,
     //   action: "update",
     //   possession: "any",
-    //   resource: "Order",
+    //   resource: "Product",
     // });
+    
     // const invalidAttributes = abacUtil.getInvalidAttributes(permission, data);
-    // if (invalidAttributes.length) {
+    // if (invalidAttributes.length) {      
     //   const roles = userRoles
     //     .map((role: string) => JSON.stringify(role))
     //     .join(",");
@@ -420,7 +422,7 @@ export class OrderControllerBase {
     //     } of ${"Order"} is forbidden for roles: ${roles}`
     //   );
     // }
-    await this.service.update({
+    this.service.update({
       where: params,
       data,
       select: { id: true },

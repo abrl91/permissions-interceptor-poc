@@ -197,7 +197,7 @@ export class PermissionsInterceptor<T> implements NestInterceptor {
                     console.log(permission.filter(resourceResults), 'find one filtered');
                    return permission.filter(resourceResults);
                 }
-            case 'Mutation':
+            case 'Mutation':                
                 if (action === 'delete') {
                     return resourceResults;
                 }

@@ -31,10 +31,11 @@ import { Customer } from "../../customer/base/Customer";
 import { OrderService } from "../order.service";
 import { PermissionsInterceptor } from "src/interceptors/permissions.interceptor";
 import { Public } from "src/decorators/public.decorator";
+import { GqlPermissionsInterceptor } from "src/interceptors/gqlPermissions.interceptor";
 
 @graphql.Resolver(() => Order)
-@common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
-@common.UseInterceptors(PermissionsInterceptor)
+// @common.UseGuards(GqlDefaultAuthGuard, gqlACGuard.GqlACGuard)
+@common.UseInterceptors(GqlPermissionsInterceptor)
 export class OrderResolverBase {
   constructor(
     protected readonly service: OrderService,
