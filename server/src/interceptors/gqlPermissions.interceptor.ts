@@ -6,6 +6,7 @@ import { Reflector } from '@nestjs/core';
 import * as abacUtil from "../auth/abac.util";
 import * as apollo from "apollo-server-express";
 import { IS_PUBLIC_KEY } from "src/decorators/public.decorator";
+import { setInvalidAttributes, throwForbiddenExceptionByPermissions } from "src/buildExceptionError";
 
 @Injectable()
 export class GqlPermissionsInterceptor<T> implements NestInterceptor {
@@ -38,10 +39,13 @@ export class GqlPermissionsInterceptor<T> implements NestInterceptor {
         
         const { path } = context.getArgByIndex(3);
         const argsData = context.getArgByIndex(1);
+        const mainResolverName = context.getClass().name.split(/(?=[A-Z])/)[0];
+        
         
         return next.handle().pipe(
             map((data) => {
                 return this.mapPermissionsByTypeName(
+                    mainResolverName,
                     path.typename,
                     permissionsRoles.action,
                     permissionsRoles.resource,
@@ -67,6 +71,7 @@ export class GqlPermissionsInterceptor<T> implements NestInterceptor {
      * @returns resourceResults[] (find many) | resourceResult (find one) | null (delete)
      */
     private mapPermissionsByTypeName(
+        mainResolverName: string,
         typeName: string,
         action: string,
         resource: string,
@@ -77,35 +82,31 @@ export class GqlPermissionsInterceptor<T> implements NestInterceptor {
     ): any[] | any | null {
         switch (typeName) {
             case 'Query':
+                console.log('Query');
+                
                 if (Array.isArray(resourceResults)) {
-                    console.log(resourceResults.map((results: T) => permission.filter(results)), 'find many filtered');
                     return resourceResults.map((results: T) => permission.filter(results))    
                 } else {
-                    console.log(permission.filter(resourceResults), 'find one filtered');
                    return permission.filter(resourceResults);
                 }
-            case 'Mutation':                
-                if (action === 'delete') {
-                    return resourceResults;
-                }
-                const invalidAttributes = abacUtil.getInvalidAttributes(
+            case 'Mutation':
+                console.log('Mutation');
+                             
+                const invalidAttributes = setInvalidAttributes(
+                    mainResolverName,
+                    resource,
                     permission,
-                    args.data
-                  );
+                    args,
+                ) || [];
                 if (invalidAttributes.length) {
-                    console.log('i am here');
-                    
-                    const properties = invalidAttributes
-                      .map((attribute: string) => JSON.stringify(attribute))
-                      .join(", ");
-                    const roles = userRoles
-                      .map((role: string) => JSON.stringify(role))
-                      .join(",");
-                    throw new apollo.ApolloError(
-                      `providing the properties: ${properties} on ${resource} is forbidden for roles: ${roles}`
+                    throwForbiddenExceptionByPermissions(
+                        invalidAttributes,
+                        userRoles,
+                        resource,
+                        action
                     );
-                  }
-                  return resourceResults;
+                }
+                return resourceResults;
         }
     }
   }

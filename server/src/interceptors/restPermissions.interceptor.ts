@@ -3,10 +3,7 @@ import { Observable } from "rxjs";
 import { map } from 'rxjs/operators';
 import { InjectRolesBuilder, Permission, RolesBuilder } from 'nest-access-control';
 import { Reflector } from '@nestjs/core';
-import * as abacUtil from "../auth/abac.util";
-import * as errors from "../errors";
-import { ForbiddenException } from "../errors";
-import { IS_PUBLIC_KEY } from "src/decorators/public.decorator";
+import { setInvalidAttributes, throwForbiddenExceptionByPermissions } from "src/buildExceptionError";
 
 @Injectable()
 export class RestPermissionsInterceptor<T> implements NestInterceptor {
@@ -16,15 +13,6 @@ export class RestPermissionsInterceptor<T> implements NestInterceptor {
     ) {}
 
     intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
-        const isPublic = this.reflector.get<boolean>(
-            IS_PUBLIC_KEY,
-            context.getHandler()
-        );
-
-        if (isPublic) {
-            return next.handle();
-        }
-
         const [permissionsRoles]: any = this.reflector.getAllAndMerge<string[]>('roles', [
             context.getHandler(),
             context.getClass(),
@@ -37,12 +25,13 @@ export class RestPermissionsInterceptor<T> implements NestInterceptor {
             resource: permissionsRoles.resource,
         });
     
-        const { route, body } = context.switchToHttp().getRequest();
+        const { body } = context.switchToHttp().getRequest();
+        const mainCtrlName = context.getClass().name.split(/(?=[A-Z])/)[0];        
         
         return next.handle().pipe(
             map((data) => {
                 return this.mapPermissionsByAction(
-                    route.path,
+                    mainCtrlName,
                     body,
                     permissionsRoles.action,
                     permissionsRoles.resource,
@@ -64,7 +53,7 @@ export class RestPermissionsInterceptor<T> implements NestInterceptor {
      * @returns resourceResults[] (find many) | resourceResult (find one) | void (delete operations return void)
      */
     private mapPermissionsByAction(
-        url: string,
+        mainCtrlName: string,
         reqBody: object,
         action: string, 
         resource: string, 
@@ -72,101 +61,35 @@ export class RestPermissionsInterceptor<T> implements NestInterceptor {
         permission: Permission, 
         resourceResults: any): any[] | any | void  {
         let invalidAttributes;
-        
-        switch (action) {
-            case 'read':
-                console.log('read');
-                if (Array.isArray(resourceResults)) {
-                    return resourceResults.map((results: T) => permission.filter(results))    
-                } else {
-                   return permission.filter(resourceResults);
-                }
-            case 'create':
-                console.log('create');
-                invalidAttributes = abacUtil.getInvalidAttributes(permission, resourceResults);
+
+        if (action === 'read') {
+            console.log('read');
+
+            if (Array.isArray(resourceResults)) {
+                return resourceResults.map((results: any) => permission.filter(results))    
+            } else {
+               return permission.filter(resourceResults);
+            }
+        }
+
+        console.log(action, 'create/update/delete');
+
+                invalidAttributes = setInvalidAttributes(
+                    mainCtrlName,
+                    resource,
+                    permission,
+                    reqBody,
+                    resourceResults
+                );
                 if (invalidAttributes.length) {
-                    const properties = invalidAttributes
-                        .map((attribute: string) => JSON.stringify(attribute))
-                        .join(", ");
-                    const roles = userRoles
-                        .map((role: string) => JSON.stringify(role))
-                        .join(",");
-                    throw new errors.ForbiddenException(
-                        `providing the properties: ${properties} on ${resource} ${action} is forbidden for roles: ${roles}`
+                    throwForbiddenExceptionByPermissions(
+                        invalidAttributes,
+                        userRoles,
+                        resource,
+                        action
                     );
                 }
                 return resourceResults;
-            case 'update':
-                console.log('update');
-                    if (!this.checkRequestUrlNested(url)) {
-                        console.log('simple update');
-                        invalidAttributes = abacUtil.getInvalidAttributes(permission, resourceResults);
-                        console.log('i dont have id in my url');
-                        if (invalidAttributes.length) {
-                            const properties = invalidAttributes
-                                .map((attribute: string) => JSON.stringify(attribute))
-                                .join(", ");
-                            const roles = userRoles
-                                .map((role: string) => JSON.stringify(role))
-                                .join(",");
-                            throw new errors.ForbiddenException(
-                                `providing the properties: ${properties} on ${resource} ${action} is forbidden for roles: ${roles}`
-                            );
-                        }
-                    } else {
-                        console.log('nested update');                        
-                        invalidAttributes = abacUtil.getInvalidAttributes(
-                            permission, {
-                                [resource.toLowerCase()]: reqBody,
-                            });
-                        if (invalidAttributes.length) {
-                            const roles = userRoles
-                            .map((role: string) => JSON.stringify(role))
-                            .join(",");
-                        throw new ForbiddenException(
-                        `Updating the relationship: ${
-                        invalidAttributes[0]
-                            } of ${resource} is forbidden for roles: ${roles}`
-                        );
-                    }  
-                }
-                return resourceResults;
-            case 'delete':
-                console.log('delete');
-                
-                if (this.checkRequestUrlNested(url)) {
-                    console.log('nested delete');
-                    invalidAttributes = abacUtil.getInvalidAttributes(
-                        permission, {
-                            [resource.toLowerCase()]: reqBody
-                        });
-                    if (invalidAttributes.length) {
-                        const roles = userRoles
-                            .map((role: string) => JSON.stringify(role))
-                            .join(",");
-                        throw new ForbiddenException(
-                            `Updating the relationship: ${
-                                invalidAttributes[0]
-                            } of ${resource} is forbidden for roles: ${roles}`
-                        );
-                    }
-                } else {
-                    console.log('simple delete');
-
-                }
-            default:
-                console.log('no action');
-                
-        }
     }
-
-    /**
-     * 
-     * @param url string
-     * check if url contains /:id/
-     * if so - we need to handle the invalid attributed differently
-     */
-    private checkRequestUrlNested(url: string): boolean {
-        return !!url.match('\/:id\/');
-    }
+    
   }
